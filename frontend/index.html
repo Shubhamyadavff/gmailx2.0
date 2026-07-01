@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail Task Board & Integration</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <!-- Background Animated Blobs -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <div id="app">
+        <!-- ================= AUTH CONTAINER ================= -->
+        <div id="auth-container" class="auth-card hidden">
+            <div class="auth-header">
+                <div class="logo-area">
+                    <i data-lucide="mail" class="glowing-icon logo-glow"></i>
+                    <h2>G-Farmer Task</h2>
+                </div>
+                <p id="auth-subtitle">Log in to start creating tasks and earning</p>
+            </div>
+            
+            <form id="auth-form" class="auth-form">
+                <div class="input-group">
+                    <label for="username"><i data-lucide="user"></i> Username</label>
+                    <input type="text" id="username" required placeholder="Enter username">
+                </div>
+                
+                <div class="input-group">
+                    <label for="password"><i data-lucide="lock"></i> Password</label>
+                    <input type="password" id="password" required placeholder="Enter password">
+                </div>
+
+                <div class="auth-error hidden" id="auth-error-msg"></div>
+                
+                <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-block">
+                    <span>Log In</span>
+                    <i data-lucide="arrow-right"></i>
+                </button>
+            </form>
+            
+            <div class="auth-toggle">
+                <span id="toggle-text">Don't have an account?</span>
+                <a href="#" id="toggle-auth-btn">Register here</a>
+            </div>
+        </div>
+
+        <!-- ================= WORKER DASHBOARD ================= -->
+        <div id="worker-dashboard" class="dashboard-layout hidden">
+            <header class="dash-header">
+                <div class="logo-area">
+                    <i data-lucide="mail" class="glowing-icon"></i>
+                    <h1>Gmail Farmer <span>Console</span></h1>
+                </div>
+                <div class="user-controls">
+                    <span class="user-badge">
+                        <i data-lucide="user-check"></i>
+                        <span id="worker-username">Worker</span>
+                    </span>
+                    <button id="nav-admin-btn" class="btn btn-secondary hidden">
+                        <i data-lucide="shield"></i> Admin Panel
+                    </button>
+                    <button class="btn btn-danger logout-btn">
+                        <i data-lucide="log-out"></i>
+                    </button>
+                </div>
+            </header>
+
+            <main class="dashboard-grid">
+                <!-- Row 1: Wallets & Stats -->
+                <section class="card stats-card col-span-3">
+                    <div class="stats-header">
+                        <h2>Your Wallet Balance</h2>
+                        <button id="open-withdraw-btn" class="btn btn-primary">
+                            <i data-lucide="wallet"></i> Request Payout
+                        </button>
+                    </div>
+                    <div class="balance-grid">
+                        <div class="balance-box approved">
+                            <div class="bal-label">Approved Balance</div>
+                            <div class="bal-value">$<span id="bal-approved">0.00</span></div>
+                            <div class="bal-sub">Ready to withdraw</div>
+                            <div class="bal-glow"></div>
+                        </div>
+                        <div class="balance-box pending">
+                            <div class="bal-label">Pending Verification</div>
+                            <div class="bal-value">$<span id="bal-pending">0.00</span></div>
+                            <div class="bal-sub">Currently in verification</div>
+                            <div class="bal-glow"></div>
+                        </div>
+                        <div class="balance-box paid">
+                            <div class="bal-label">Total Paid Out</div>
+                            <div class="bal-value">$<span id="bal-paid">0.00</span></div>
+                            <div class="bal-sub">Transferred to account</div>
+                            <div class="bal-glow"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Row 2: Work Station & Submission -->
+                <section class="card col-span-2">
+                    <div class="card-header">
+                        <i data-lucide="clipboard-list" class="header-icon"></i>
+                        <h2>Assigned Task Station</h2>
+                        <button id="btn-request-bot-task" class="btn btn-secondary btn-request-task" style="margin-left: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                            <i data-lucide="bot"></i> Request Task from Bot
+                        </button>
+                    </div>
+                    
+                    <div id="task-loader" class="task-loader hidden">
+                        <div class="spinner"></div>
+                        <p>Generating new task parameters...</p>
+                    </div>
+
+                    <div id="no-task-area" class="hidden" style="text-align: center; padding: 3rem 1.5rem;">
+                        <i data-lucide="inbox" style="width: 48px; height: 48px; margin: 0 auto 1.25rem; color: var(--text-secondary); opacity: 0.65; display: block;"></i>
+                        <h3 style="margin-bottom: 0.5rem; color: var(--text-primary); font-size: 1.2rem; font-weight: 600;">No Task Assigned</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.5rem; max-width: 340px; margin-left: auto; margin-right: auto; line-height: 1.5;">
+                            Click the button below to start a new task. The system will send a command to @GmailFProBot and assign the details to you.
+                        </p>
+                        <button id="btn-start-task-prompt" class="btn btn-primary" style="padding: 0.6rem 1.75rem; display: inline-flex; align-items: center; gap: 0.5rem; margin: 0 auto;">
+                            <i data-lucide="play" style="width: 16px; height: 16px;"></i>
+                            <span>Start Task</span>
+                        </button>
+                    </div>
+                    
+                    <div id="task-details-area">
+                        <p class="task-description">Use the fields below to create a new Gmail account. Do not change these details.</p>
+                        
+                        <!-- Paste Bot Message Area -->
+                        <div class="input-group" style="margin-bottom: 1.5rem;">
+                            <label for="task-paste-area"><i data-lucide="clipboard"></i> Paste Telegram Bot Task Message</label>
+                            <textarea id="task-paste-area" rows="3" placeholder="Paste the entire Telegram message here to auto-fill..." style="background: rgba(10, 11, 20, 0.4); font-size: 0.85rem; border: 1px solid var(--card-border); color: var(--text-primary); border-radius: 10px; padding: 0.75rem 1rem; outline: none; transition: border-color 0.25s ease; resize: none;"></textarea>
+                            <button type="button" id="btn-parse-task" class="btn btn-secondary" style="margin-top: 0.5rem; padding: 0.4rem 0.8rem; font-size: 0.8rem; align-self: flex-start;">
+                                <i data-lucide="file-text"></i> Parse and Load Task
+                            </button>
+                        </div>
+                        
+                        <div class="credential-grid">
+                            <div class="cred-field">
+                                <label>First Name</label>
+                                <div class="copy-input">
+                                    <input type="text" id="task-first-name" readonly value="...">
+                                    <button class="btn-copy" onclick="copyField('task-first-name', this)"><i data-lucide="copy"></i></button>
+                                </div>
+                            </div>
+                            
+                            <div class="cred-field">
+                                <label>Last Name</label>
+                                <div class="copy-input">
+                                    <input type="text" id="task-last-name" readonly value="...">
+                                    <button class="btn-copy" onclick="copyField('task-last-name', this)"><i data-lucide="copy"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="cred-field">
+                                <label>Password Template</label>
+                                <div class="copy-input">
+                                    <input type="text" id="task-password" readonly value="...">
+                                    <button class="btn-copy" onclick="copyField('task-password', this)"><i data-lucide="copy"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="cred-field">
+                                <label>Recovery Email</label>
+                                <div class="copy-input">
+                                    <input type="text" id="task-recovery" readonly value="...">
+                                    <button class="btn-copy" onclick="copyField('task-recovery', this)"><i data-lucide="copy"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="cred-field">
+                                <label>Registration ID</label>
+                                <div class="copy-input">
+                                    <input type="text" id="task-reg-id" readonly value="...">
+                                    <button class="btn-copy" onclick="copyField('task-reg-id', this)"><i data-lucide="copy"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="cred-field">
+                                <label>Suggested Email</label>
+                                <div class="copy-input">
+                                    <input type="text" id="task-suggested-email" readonly value="...">
+                                    <button class="btn-copy" onclick="copyField('task-suggested-email', this)"><i data-lucide="copy"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="cred-field col-span-2">
+                                <label>Date of Birth</label>
+                                <div class="copy-input">
+                                    <input type="text" id="task-dob" readonly value="...">
+                                    <button class="btn-copy" onclick="copyField('task-dob', this)"><i data-lucide="copy"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card col-span-1">
+                    <div class="card-header">
+                        <i data-lucide="send" class="header-icon"></i>
+                        <h2>Submit Account</h2>
+                    </div>
+                    
+                    <!-- Submit Creds Form -->
+                    <form id="task-submit-form" class="submit-form">
+                        <input type="hidden" id="submit-task-id">
+                        
+                        <div class="input-group">
+                            <label for="gmail-address">Created Gmail Address</label>
+                            <input type="email" id="gmail-address" required placeholder="example123@gmail.com">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="gmail-password">Gmail Password</label>
+                            <input type="text" id="gmail-password" required placeholder="Enter the final password used">
+                        </div>
+                        
+                        <button type="submit" id="submit-creds-btn" class="btn btn-primary btn-block">
+                            Submit Credentials
+                        </button>
+                    </form>
+
+                    <!-- Submission Status Pipeline Tracker -->
+                    <div id="pipeline-tracker" class="pipeline-card hidden">
+                        <div class="pipeline-loader">
+                            <div class="spinner"></div>
+                        </div>
+                        <div class="pipeline-details">
+                            <h3 id="pipeline-status">Routing to bot...</h3>
+                            <p id="pipeline-description">Sent for validation over Telegram. This takes around 10 seconds.</p>
+                        </div>
+                    </div>
+
+                    <!-- Auto-Cycle Indicator -->
+                    <div id="auto-cycle-tracker" class="pipeline-card auto-cycle-card hidden">
+                        <div class="pipeline-loader">
+                            <div class="spinner"></div>
+                        </div>
+                        <div class="pipeline-details">
+                            <h3 id="auto-cycle-status">Fetching Next Task from Bot...</h3>
+                            <p id="auto-cycle-description">The system is automatically requesting a new task assignment.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Row 3: History & Log -->
+                <section class="card col-span-3">
+                    <div class="card-header">
+                        <i data-lucide="history" class="header-icon"></i>
+                        <h2>Task Credentials Submission History</h2>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Task ID</th>
+                                    <th>Submitted Gmail</th>
+                                    <th>Password</th>
+                                    <th>Recovery Email</th>
+                                    <th>Date</th>
+                                    <th>Verification Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="worker-history-body">
+                                <tr>
+                                    <td colspan="6" class="text-center">No tasks submitted yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- ================= ADMIN DASHBOARD ================= -->
+        <div id="admin-dashboard" class="dashboard-layout hidden">
+            <header class="dash-header">
+                <div class="logo-area">
+                    <i data-lucide="shield" class="glowing-icon admin-glow"></i>
+                    <h1>Gmail Farmer <span>Admin</span></h1>
+                </div>
+                <div class="user-controls">
+                    <button id="nav-worker-btn" class="btn btn-secondary">
+                        <i data-lucide="briefcase"></i> Worker Console
+                    </button>
+                    <button class="btn btn-danger logout-btn">
+                        <i data-lucide="log-out"></i>
+                    </button>
+                </div>
+            </header>
+
+            <main class="dashboard-grid">
+                <!-- Top Section: Config panel and Telegram state -->
+                <section class="card col-span-2">
+                    <div class="card-header">
+                        <i data-lucide="settings" class="header-icon"></i>
+                        <h2>Control Panel & Payout Settings</h2>
+                    </div>
+                    
+                    <form id="admin-config-form" class="admin-config-grid">
+                        <div class="input-group">
+                            <label for="config-payout">Worker Payout per Account ($)</label>
+                            <input type="number" id="config-payout" step="0.01" min="0.01" required>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="config-bot">Target Telegram Bot Username</label>
+                            <input type="text" id="config-bot" required>
+                        </div>
+
+                        <div class="input-group col-span-2">
+                            <label for="config-bot-routing"><i data-lucide="git-branch"></i> Bot Routing Mode</label>
+                            <select id="config-bot-routing" required>
+                                <option value="system">Single System Bot (Target Bot)</option>
+                                <option value="pool">Multi-Bot Pool (Round-Robin/Random)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="toggle-group">
+                            <div class="toggle-info">
+                                <span class="toggle-title">System Simulation Mode</span>
+                                <span class="toggle-desc">Auto-verifies tasks locally without hitting real Telegram bot</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="config-sim">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary col-span-2">Save Configuration</button>
+                    </form>
+                </section>
+
+                <section class="card col-span-1">
+                    <div class="card-header">
+                        <i data-lucide="message-square" class="header-icon"></i>
+                        <h2>Telegram Connection</h2>
+                    </div>
+                    
+                    <div id="tg-status-card" class="tg-status-card">
+                        <div class="status-indicator">
+                            <span id="tg-dot" class="dot dot-red"></span>
+                            <span id="tg-status-text">Disconnected</span>
+                        </div>
+                        <p id="tg-info-text">Configure API credentials and connect to authorize MTProto session.</p>
+                        
+                        <button id="tg-action-btn" class="btn btn-primary btn-block">Connect Telegram</button>
+                    </div>
+                </section>
+
+                <!-- Middle Section: Registered Workers -->
+                <section class="card col-span-2">
+                    <div class="card-header">
+                        <i data-lucide="users" class="header-icon"></i>
+                        <h2>Worker Management Registry</h2>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Worker ID</th>
+                                    <th>Username</th>
+                                    <th>Approved Balance</th>
+                                    <th>Pending Balance</th>
+                                    <th>Total Paid</th>
+                                    <th>Registered Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-workers-body">
+                                <tr>
+                                    <td colspan="6" class="text-center">No workers registered.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Telegram Bots Pool Manager -->
+                <section class="card col-span-1">
+                    <div class="card-header">
+                        <i data-lucide="bot" class="header-icon"></i>
+                        <h2>Telegram Bots Pool</h2>
+                    </div>
+                    
+                    <form id="admin-add-bot-form" class="add-bot-form" style="margin-bottom: 1.25rem;">
+                        <div class="input-group" style="margin-bottom: 0;">
+                            <label for="new-bot-username">Add Bot Username</label>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                                <input type="text" id="new-bot-username" required placeholder="@MyGmailBot" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+                                <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;"><i data-lucide="plus"></i> Add</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                        <table class="data-table" style="font-size: 0.8rem;">
+                            <thead>
+                                <tr>
+                                    <th>Bot Username</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-bots-body">
+                                <tr>
+                                    <td colspan="3" class="text-center">No bots added to pool.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Gmail Accounts Verification Center -->
+                <section class="card col-span-3">
+                    <div class="card-header">
+                        <i data-lucide="clipboard-check" class="header-icon"></i>
+                        <h2>Gmail Accounts Verification Center</h2>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Task ID</th>
+                                    <th>Worker Username</th>
+                                    <th>Gmail Address</th>
+                                    <th>Gmail Password</th>
+                                    <th>Recovery Email</th>
+                                    <th>Submitted Date</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-tasks-body">
+                                <tr>
+                                    <td colspan="8" class="text-center">No Gmail submissions available.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Bottom Section: Payout clearing center -->
+                <section class="card col-span-3">
+                    <div class="card-header">
+                        <i data-lucide="credit-card" class="header-icon"></i>
+                        <h2>Payout Clearing Center (Withdrawals)</h2>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Request ID</th>
+                                    <th>Worker Name</th>
+                                    <th>Withdrawal Amount</th>
+                                    <th>Payment Method</th>
+                                    <th>Payment Details / Addresses</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-withdrawals-body">
+                                <tr>
+                                    <td colspan="8" class="text-center">No withdrawals processed.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- ================= WITHDRAWAL REQUEST MODAL ================= -->
+        <div id="withdraw-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2>Submit Withdrawal Request</h2>
+                    <button class="btn-close" onclick="closeModal('withdraw-modal')"><i data-lucide="x"></i></button>
+                </div>
+                <form id="withdraw-form" class="modal-form">
+                    <div class="balance-display-box">
+                        Available Balance: $<span id="modal-approved-balance">0.00</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="withdraw-amount">Amount to Withdraw ($)</label>
+                        <input type="number" id="withdraw-amount" step="0.01" min="0.01" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="withdraw-method">Payment Method</label>
+                        <select id="withdraw-method" required>
+                            <option value="">Select Payment Option...</option>
+                            <option value="USDT (TRC-20)">USDT (TRC-20)</option>
+                            <option value="PayPal">PayPal</option>
+                            <option value="UPI">UPI Payment</option>
+                            <option value="Local Bank Transfer">Local Bank Transfer</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="withdraw-details">Payment Details / Wallet Addresses</label>
+                        <textarea id="withdraw-details" rows="3" required placeholder="Enter USDT address, Paypal Email, UPI ID or bank account details..."></textarea>
+                    </div>
+
+                    <div id="withdraw-error" class="error-msg hidden"></div>
+
+                    <button type="submit" class="btn btn-primary btn-block">Confirm Request</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= TELEGRAM LINKER MODAL ================= -->
+        <div id="telegram-link-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2>Link Telegram Session</h2>
+                    <button class="btn-close" onclick="closeModal('telegram-link-modal')"><i data-lucide="x"></i></button>
+                </div>
+                
+                <!-- Step 1: Request OTP -->
+                <form id="tg-connect-form" class="modal-form">
+                    <p class="modal-help-text">Input credentials from <a href="https://my.telegram.org" target="_blank" class="text-accent">my.telegram.org</a>. The account will run Telethon to route data securely.</p>
+                    
+                    <div class="input-group">
+                        <label for="tg-phone">Phone Number (with Country Code)</label>
+                        <input type="text" id="tg-phone" required placeholder="+1234567890">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="tg-api-id">API ID</label>
+                        <input type="text" id="tg-api-id" required placeholder="Enter API ID">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="tg-api-hash">API Hash</label>
+                        <input type="password" id="tg-api-hash" required placeholder="Enter API Hash">
+                    </div>
+
+                    <div id="tg-connect-error" class="error-msg hidden"></div>
+
+                    <button type="submit" id="tg-connect-btn" class="btn btn-primary btn-block">Send OTP Code</button>
+                </form>
+
+                <!-- Step 2: Input OTP (Hidden initially) -->
+                <form id="tg-otp-form" class="modal-form hidden">
+                    <p class="modal-help-text">An OTP code has been sent by Telegram. Input it below to confirm connection.</p>
+                    
+                    <div class="input-group">
+                        <label for="tg-otp">Verification OTP Code</label>
+                        <input type="text" id="tg-otp" required placeholder="Enter OTP code">
+                    </div>
+
+                    <div id="tg-otp-error" class="error-msg hidden"></div>
+
+                    <button type="submit" id="tg-otp-btn" class="btn btn-primary btn-block">Verify OTP Code</button>
+                </form>
+
+                <!-- Step 3: Input 2FA Password (Hidden initially) -->
+                <form id="tg-2fa-form" class="modal-form hidden">
+                    <p class="modal-help-text">This Telegram account has Two-Factor Authentication enabled. Enter your password to complete login.</p>
+                    
+                    <div class="input-group">
+                        <label for="tg-2fa-password">2FA Password</label>
+                        <input type="password" id="tg-2fa-password" required placeholder="Enter 2FA password">
+                    </div>
+
+                    <div id="tg-2fa-error" class="error-msg hidden"></div>
+
+                    <button type="submit" id="tg-2fa-btn" class="btn btn-primary btn-block">Sign In</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Custom JavaScript Application -->
+    <script src="app.js?v=2.0"></script>
+</body>
+</html>
